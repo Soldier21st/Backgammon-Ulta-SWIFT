@@ -51,11 +51,15 @@ public struct SoloMatchView: View {
 
                 boardCentricLayout(size: proxy.size, safeArea: proxy.safeAreaInsets)
             }
+            .ignoresSafeArea()
         }
+        .ignoresSafeArea()
         .navigationTitle("")
 #if os(iOS)
-        .toolbar(.hidden, for: .navigationBar)
-        .toolbar(.hidden, for: .tabBar)
+        .navigationBarBackButtonHidden(true)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarVisibility(.hidden, for: .navigationBar)
+        .toolbarVisibility(.hidden, for: .tabBar)
         .statusBarHidden(isLandscape)
 #endif
         .onChange(of: viewModel.gameplaySettings) { _, newValue in
@@ -118,43 +122,41 @@ public struct SoloMatchView: View {
     // MARK: - Floating Overlays
 
     private func floatingOverlays(metrics: BoardMetrics, safeArea: EdgeInsets) -> some View {
-        ZStack {
-            // Top-left: Player 2 (AI) info
-            VStack {
-                HStack(spacing: 8) {
+        let hPad = max(safeArea.leading, 6)
+
+        return ZStack {
+            // Top: AI info (left) + control icons (right)
+            VStack(spacing: 0) {
+                HStack(spacing: 6) {
                     playerInfoPill(
                         name: "AI (\(viewModel.aiLevel.title))",
                         checkerColor: .black,
                         pips: viewModel.blackPips,
-                        bar: viewModel.blackBar,
-                        off: viewModel.blackOff,
                         isTurn: viewModel.currentTurn == .black
                     )
-                    Spacer()
+                    Spacer(minLength: 4)
                     controlButtons(safeArea: safeArea)
                 }
-                .padding(.top, safeArea.top + 4)
-                .padding(.horizontal, max(safeArea.leading, 8))
+                .padding(.top, safeArea.top + 2)
+                .padding(.horizontal, hPad)
                 Spacer()
             }
 
-            // Bottom: Player 1 (You) info + action buttons
-            VStack {
+            // Bottom: Your info (left) + undo (right)
+            VStack(spacing: 0) {
                 Spacer()
-                HStack(spacing: 8) {
+                HStack(spacing: 6) {
                     playerInfoPill(
                         name: "You",
                         checkerColor: .white,
                         pips: viewModel.whitePips,
-                        bar: viewModel.whiteBar,
-                        off: viewModel.whiteOff,
                         isTurn: viewModel.currentTurn == .white
                     )
-                    Spacer()
+                    Spacer(minLength: 4)
                     actionButtons
                 }
-                .padding(.bottom, safeArea.bottom + 4)
-                .padding(.horizontal, max(safeArea.trailing, 8))
+                .padding(.bottom, safeArea.bottom + 2)
+                .padding(.horizontal, hPad)
             }
 
             // Center: Roll Dice button (only when needed)
@@ -175,41 +177,36 @@ public struct SoloMatchView: View {
         name: String,
         checkerColor: CheckerColor,
         pips: Int,
-        bar: Int,
-        off: Int,
         isTurn: Bool
     ) -> some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 5) {
             Circle()
                 .fill(checkerColor == .white ? Color.white : Color(red: 0.12, green: 0.14, blue: 0.19))
-                .frame(width: 14, height: 14)
-                .overlay(Circle().stroke(Color.white.opacity(0.4), lineWidth: 0.8))
+                .frame(width: 12, height: 12)
+                .overlay(Circle().stroke(Color.white.opacity(0.35), lineWidth: 0.7))
 
             Text(name)
-                .font(.caption.weight(.bold))
+                .font(.system(size: 11, weight: .bold))
                 .foregroundStyle(.white)
 
             if isTurn {
-                Image(systemName: "arrowtriangle.right.fill")
-                    .font(.system(size: 7))
-                    .foregroundStyle(Color.green)
+                Circle()
+                    .fill(Color.green)
+                    .frame(width: 6, height: 6)
             }
 
             if viewModel.gameplaySettings.pipsCounterEnabled {
-                Text("Pip \(pips)")
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.7))
+                Text("\(pips)")
+                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(.white.opacity(0.65))
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(.ultraThinMaterial.opacity(0.85), in: Capsule())
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(Color.black.opacity(0.55), in: Capsule())
         .overlay(
-            Capsule()
-                .strokeBorder(
-                    isTurn ? Color.green.opacity(0.6) : Color.white.opacity(0.15),
-                    lineWidth: isTurn ? 1.2 : 0.8
-                )
+            Capsule().strokeBorder(Color.white.opacity(0.12), lineWidth: 0.6)
         )
     }
 
@@ -227,11 +224,11 @@ public struct SoloMatchView: View {
     private func iconButton(systemName: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: systemName)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.white.opacity(0.9))
-                .frame(width: 30, height: 30)
-                .background(.ultraThinMaterial.opacity(0.7), in: Circle())
-                .overlay(Circle().strokeBorder(Color.white.opacity(0.15), lineWidth: 0.8))
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.white.opacity(0.85))
+                .frame(width: 26, height: 26)
+                .background(Color.black.opacity(0.5), in: Circle())
+                .overlay(Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 0.6))
         }
         .buttonStyle(.plain)
     }
@@ -239,17 +236,17 @@ public struct SoloMatchView: View {
     // MARK: - Action Buttons (bottom-right)
 
     private var actionButtons: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             if viewModel.canUndoLastMove {
                 Button {
                     viewModel.undoLastHumanMove()
                 } label: {
                     Image(systemName: "arrow.uturn.backward")
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 30, height: 30)
-                        .background(.ultraThinMaterial.opacity(0.7), in: Circle())
-                        .overlay(Circle().strokeBorder(Color.white.opacity(0.2), lineWidth: 0.8))
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.85))
+                        .frame(width: 26, height: 26)
+                        .background(Color.black.opacity(0.5), in: Circle())
+                        .overlay(Circle().strokeBorder(Color.white.opacity(0.12), lineWidth: 0.6))
                 }
                 .buttonStyle(.plain)
             }
@@ -969,55 +966,46 @@ private struct BoardMetrics {
     let checkerSize: CGFloat
 
     init(containerSize: CGSize, safeArea: EdgeInsets, isLandscape: Bool, displayScale: CGFloat) {
+        // The board should fill the ENTIRE safe area. Player pills and controls
+        // float ON TOP of the board as semi-transparent overlays, not beside it.
         let safeWidth = containerSize.width - safeArea.leading - safeArea.trailing
         let safeHeight = containerSize.height - safeArea.top - safeArea.bottom
 
-        let margin: CGFloat = isLandscape ? 4 : 6
+        // Tiny margin so the board frame has a sliver of breathing room.
+        let margin: CGFloat = 2
         let availWidth = max(200, safeWidth - margin * 2)
         let availHeight = max(200, safeHeight - margin * 2)
 
-        if isLandscape {
-            // Landscape: board aspect ~1.85:1, fill the screen
-            let landscapeAspect: CGFloat = 1.85
-            let widthFromHeight = availHeight * landscapeAspect
-            boardWidth = Self.px(min(availWidth, widthFromHeight), scale: displayScale)
-            boardHeight = Self.px(boardWidth / landscapeAspect, scale: displayScale)
-        } else {
-            // Portrait: board fills the width and expands vertically
-            // Use a portrait aspect (wider-than-tall but filling height)
-            // Reserve ~36pt top + ~36pt bottom for overlay pills
-            let reservedOverlay: CGFloat = 72
-            let maxBoardHeight = availHeight - reservedOverlay
-            let portraitAspect: CGFloat = 0.58 // width/height ratio
-            let heightFromWidth = availWidth / portraitAspect
+        // Fill everything — the internal HStack/VStack stretches to any ratio.
+        boardWidth = Self.px(availWidth, scale: displayScale)
+        boardHeight = Self.px(availHeight, scale: displayScale)
 
-            boardWidth = Self.px(availWidth, scale: displayScale)
-            boardHeight = Self.px(min(maxBoardHeight, heightFromWidth), scale: displayScale)
-        }
+        // Center within the safe area, not the raw container.
+        let safeCenterX = safeArea.leading + safeWidth / 2
+        let safeCenterY = safeArea.top + safeHeight / 2
+        boardCenterX = safeCenterX
+        boardCenterY = safeCenterY
 
-        boardCenterX = containerSize.width / 2
-        boardCenterY = containerSize.height / 2
+        boardCornerRadius = min(14, min(boardWidth, boardHeight) * 0.02)
+        frameBorder = max(2, min(boardWidth, boardHeight) * 0.005)
+        innerPadding = max(1, min(boardWidth, boardHeight) * 0.003)
 
-        boardCornerRadius = min(16, boardWidth * 0.02)
-        frameBorder = max(3, boardWidth * 0.008)
-        innerPadding = max(2, boardWidth * 0.004)
-
-        // Internal dimensions
+        // Internal dimensions after frame and padding.
         let innerWidth = boardWidth - (frameBorder + innerPadding) * 2
         let innerHeight = boardHeight - (frameBorder + innerPadding) * 2
 
-        barWidth = Self.px(max(18, min(36, innerWidth * 0.045)), scale: displayScale)
-        trayWidth = Self.px(max(16, min(30, innerWidth * 0.038)), scale: displayScale)
-        pointSpacing = Self.px(max(1, min(2, innerWidth * 0.004)), scale: displayScale)
+        barWidth = Self.px(max(16, min(34, innerWidth * 0.038)), scale: displayScale)
+        trayWidth = Self.px(max(14, min(28, innerWidth * 0.032)), scale: displayScale)
+        pointSpacing = Self.px(max(0.5, min(2, innerWidth * 0.003)), scale: displayScale)
 
-        diceLaneHeight = Self.px(max(24, min(42, innerHeight * 0.08)), scale: displayScale)
-        rowHeight = Self.px(max(60, (innerHeight - diceLaneHeight) / 2), scale: displayScale)
+        diceLaneHeight = Self.px(max(22, min(40, innerHeight * 0.07)), scale: displayScale)
+        rowHeight = Self.px(max(50, (innerHeight - diceLaneHeight) / 2), scale: displayScale)
 
-        // Checker size: proportional to point width, capped to prevent oversized checkers
+        // Checker size: proportional to point width.
         let pointAreaWidth = (innerWidth - barWidth - trayWidth * 2) / 2
         let singlePointWidth = (pointAreaWidth - pointSpacing * 5) / 6
         checkerSize = Self.px(
-            max(10, min(singlePointWidth * 0.82, min(rowHeight * 0.14, 26))),
+            max(8, min(singlePointWidth * 0.82, min(rowHeight * 0.14, 28))),
             scale: displayScale
         )
     }
