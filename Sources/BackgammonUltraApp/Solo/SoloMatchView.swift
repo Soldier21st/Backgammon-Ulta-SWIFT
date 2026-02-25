@@ -58,8 +58,8 @@ public struct SoloMatchView: View {
 #if os(iOS)
         .navigationBarBackButtonHidden(true)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarVisibility(.hidden, for: .navigationBar)
-        .toolbarVisibility(.hidden, for: .tabBar)
+        .toolbar(.hidden, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
         .statusBarHidden(isLandscape)
 #endif
         .onChange(of: viewModel.gameplaySettings) { _, newValue in
@@ -976,9 +976,39 @@ private struct BoardMetrics {
         let availWidth = max(200, safeWidth - margin * 2)
         let availHeight = max(200, safeHeight - margin * 2)
 
-        // Fill everything — the internal HStack/VStack stretches to any ratio.
+        // Board always fills available width.
         boardWidth = Self.px(availWidth, scale: displayScale)
-        boardHeight = Self.px(availHeight, scale: displayScale)
+
+        // Preliminary frame metrics (width-based; height gets finalised below).
+        let minDim = min(availWidth, availHeight)
+        boardCornerRadius = min(14, minDim * 0.02)
+        frameBorder = max(2, minDim * 0.005)
+        innerPadding = max(1, minDim * 0.003)
+
+        let frameInset = (frameBorder + innerPadding) * 2
+        let innerWidth = boardWidth - frameInset
+        let prelimInnerHeight = availHeight - frameInset
+
+        barWidth = Self.px(max(16, min(34, innerWidth * 0.038)), scale: displayScale)
+        trayWidth = Self.px(max(14, min(28, innerWidth * 0.032)), scale: displayScale)
+        pointSpacing = Self.px(max(0.5, min(2, innerWidth * 0.003)), scale: displayScale)
+
+        // Compute single-point width FIRST so we can cap the triangle height.
+        let pointAreaWidth = (innerWidth - barWidth - trayWidth * 2) / 2
+        let singlePointWidth = (pointAreaWidth - pointSpacing * 5) / 6
+
+        diceLaneHeight = Self.px(max(22, min(40, prelimInnerHeight * 0.07)), scale: displayScale)
+
+        // Cap row height: triangles should be at most ~5.5× as tall as wide,
+        // preventing absurdly stretched points in portrait orientation.
+        let maxTriangleRatio: CGFloat = 5.5
+        let unconstrainedRowHeight = max(50, (prelimInnerHeight - diceLaneHeight) / 2)
+        let maxRowHeight = max(50, singlePointWidth * maxTriangleRatio)
+        rowHeight = Self.px(min(unconstrainedRowHeight, maxRowHeight), scale: displayScale)
+
+        // Finalise board height from the (possibly reduced) row height.
+        let neededHeight = rowHeight * 2 + diceLaneHeight + frameInset
+        boardHeight = Self.px(min(availHeight, neededHeight), scale: displayScale)
 
         // Center within the safe area, not the raw container.
         let safeCenterX = safeArea.leading + safeWidth / 2
@@ -986,24 +1016,7 @@ private struct BoardMetrics {
         boardCenterX = safeCenterX
         boardCenterY = safeCenterY
 
-        boardCornerRadius = min(14, min(boardWidth, boardHeight) * 0.02)
-        frameBorder = max(2, min(boardWidth, boardHeight) * 0.005)
-        innerPadding = max(1, min(boardWidth, boardHeight) * 0.003)
-
-        // Internal dimensions after frame and padding.
-        let innerWidth = boardWidth - (frameBorder + innerPadding) * 2
-        let innerHeight = boardHeight - (frameBorder + innerPadding) * 2
-
-        barWidth = Self.px(max(16, min(34, innerWidth * 0.038)), scale: displayScale)
-        trayWidth = Self.px(max(14, min(28, innerWidth * 0.032)), scale: displayScale)
-        pointSpacing = Self.px(max(0.5, min(2, innerWidth * 0.003)), scale: displayScale)
-
-        diceLaneHeight = Self.px(max(22, min(40, innerHeight * 0.07)), scale: displayScale)
-        rowHeight = Self.px(max(50, (innerHeight - diceLaneHeight) / 2), scale: displayScale)
-
         // Checker size: proportional to point width.
-        let pointAreaWidth = (innerWidth - barWidth - trayWidth * 2) / 2
-        let singlePointWidth = (pointAreaWidth - pointSpacing * 5) / 6
         checkerSize = Self.px(
             max(8, min(singlePointWidth * 0.82, min(rowHeight * 0.14, 28))),
             scale: displayScale
