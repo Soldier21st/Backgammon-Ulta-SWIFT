@@ -58,8 +58,8 @@ public struct SoloMatchView: View {
 #if os(iOS)
         .navigationBarBackButtonHidden(true)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarVisibility(.hidden, for: .navigationBar)
-        .toolbarVisibility(.hidden, for: .tabBar)
+        .toolbar(.hidden, for: .navigationBar)
+        .toolbar(.hidden, for: .tabBar)
         .statusBarHidden(isLandscape)
 #endif
         .onChange(of: viewModel.gameplaySettings) { _, newValue in
